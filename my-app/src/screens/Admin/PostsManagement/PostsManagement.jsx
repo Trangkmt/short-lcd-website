@@ -4,7 +4,7 @@ import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import './PostsManagement.css';
 import { SearchBar } from '../../../components';
-import { newsAPI, categoriesAPI, usersAPI, aiAPI, uploadsAPI, postTemplatesAPI } from '../../../services/api';
+import { newsAPI, categoriesAPI, usersAPI, uploadsAPI } from '../../../services/api';
 import { canMutatePost, canPublishPost, getStoredAdminUser, isAdminFull } from '../../../utils/adminPermissions';
 import {
     buildCreatePostForm,
@@ -45,7 +45,6 @@ const PAGE_TYPE_LABELS = {
 const CLOUDINARY_POST_FOLDER_BY_PAGE_TYPE = {
     news: 'lcd/news-post-images',
     achievement: 'lcd/achievement-images',
-    activity: 'lcd/activity-post-images',
     activity_annual: 'lcd/activity-post-images',
     activity_non_annual: 'lcd/activity-post-images',
 };
@@ -59,7 +58,7 @@ function getPageTypeIcon(pageType) {
     if (pageType === 'news') return NewsIcon;
     if (pageType === 'achievement') return TrophyIcon;
     if (pageType === 'activity_annual') return CalendarIcon;
-    if (pageType === 'activity_non_annual' || pageType === 'activity') return TargetIcon;
+    if (pageType === 'activity_non_annual') return TargetIcon;
     return FolderIcon;
 }
 
@@ -204,23 +203,11 @@ export default function PostsManagement() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-    const [aiKeywords, setAiKeywords] = useState('');
-    const [aiTopic, setAiTopic] = useState('');
-    const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiError, setAiError] = useState('');
     const [thumbnailUploading, setThumbnailUploading] = useState(false);
-    const [templates, setTemplates] = useState([]);
-    const [selectedTemplateId, setSelectedTemplateId] = useState('');
-    const [templateLoading, setTemplateLoading] = useState(false);
-    const [templateSaving, setTemplateSaving] = useState(false);
-    const [showTemplateNameModal, setShowTemplateNameModal] = useState(false);
-    const [templateNameDraft, setTemplateNameDraft] = useState('');
-    const [templateDraftPayload, setTemplateDraftPayload] = useState(null);
     const [showCatDropdown, setShowCatDropdown] = useState(false);
     const [hoveredPageType, setHoveredPageType] = useState(null);
     const [docImporting, setDocImporting] = useState(false);
     const [docExportingId, setDocExportingId] = useState('');
-    const autoAppliedTemplateCategoryRef = useRef('');
     const catDropdownRef = useRef(null);
     const editorRef = useRef(null);
     const imageInputRef = useRef(null);
@@ -255,12 +242,6 @@ export default function PostsManagement() {
         if (editingPost) {
             setEditingPost(null);
             setForm(buildCreatePostForm(EMPTY_FORM, { authorId: currentUser?.id || '' }));
-            setAiKeywords('');
-            setAiTopic('');
-            setAiError('');
-            setSelectedTemplateId('');
-            setTemplates([]);
-            autoAppliedTemplateCategoryRef.current = '';
         }
     }, [postsMode, postsEditorMode, editingPost, currentUser]);
 
@@ -308,26 +289,14 @@ export default function PostsManagement() {
 
         setEditingPost(post);
         setForm(buildEditPostForm(EMPTY_FORM, post));
-        setAiKeywords('');
-        setAiTopic(post.title || '');
-        setAiError('');
         setPostsTabInUrl('edit');
-        setSelectedTemplateId('');
-        setTemplates([]);
-        autoAppliedTemplateCategoryRef.current = '';
     }
 
     function closeEditor() {
         setPostsTabInUrl('list');
         setEditingPost(null);
         setForm(EMPTY_FORM);
-        setAiKeywords('');
-        setAiTopic('');
-        setAiError('');
         setShowCatDropdown(false);
-        setSelectedTemplateId('');
-        setTemplates([]);
-        autoAppliedTemplateCategoryRef.current = '';
     }
 
     function setPostsTabInUrl(nextTab) {
@@ -345,198 +314,6 @@ export default function PostsManagement() {
         }
         navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
     }
-
-    async function applyTemplateToForm(template, { force = false } = {}) {
-        if (!template) {
-            return;
-        }
-
-        const hasUserContent = !!(form.title?.trim() || form.summary?.trim() || form.content?.trim());
-        if (hasUserContent && !force) {
-            const confirmed = await confirm({
-                title: 'Xác nhận áp dụng template',
-                message: 'Áp dụng template sẽ ghi đè tiêu đề, tóm tắt và nội dung hiện tại.',
-                detail: 'Bạn có chắc chắn muốn tiếp tục?',
-                variant: 'warning',
-                confirmText: 'Áp dụng',
-                confirmButtonClassName: 'btn-primary',
-            });
-            if (!confirmed) {
-                return;
-            }
-        }
-
-        const title = String(template.title_template || '').trim();
-        const summary = template.summary_template || '';
-        const content = template.content_template || '';
-
-        setForm((prev) => ({
-            ...prev,
-            title,
-            slug: slugifyPostTitle(title),
-            summary,
-            content,
-        }));
-
-        if (editorRef.current) {
-            editorRef.current.innerHTML = content || '<p><br/></p>';
-        }
-    }
-
-    async function loadTemplatesForCategory(categoryId, { autoApplyDefault = false } = {}) {
-        if (!categoryId) {
-            setTemplates([]);
-            setSelectedTemplateId('');
-            return;
-        }
-
-        setTemplateLoading(true);
-        try {
-            const data = await postTemplatesAPI.getAll({ category_id: categoryId });
-            const nextTemplates = Array.isArray(data) ? data : [];
-            setTemplates(nextTemplates);
-
-            const defaultTemplate = nextTemplates.find((item) => !!item.is_default && String(item.category_id) === String(categoryId));
-            const pickedTemplate = defaultTemplate || nextTemplates[0] || null;
-            setSelectedTemplateId(pickedTemplate ? String(pickedTemplate.id) : '');
-
-            if (autoApplyDefault && defaultTemplate) {
-                await applyTemplateToForm(defaultTemplate, { force: true });
-            }
-        } catch {
-            setTemplates([]);
-            setSelectedTemplateId('');
-        } finally {
-            setTemplateLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        if (viewTab !== 'editor' || editingPost || !form.category_id) {
-            return;
-        }
-
-        const categoryKey = String(form.category_id);
-        const shouldAutoApply = autoAppliedTemplateCategoryRef.current !== categoryKey;
-
-        loadTemplatesForCategory(form.category_id, { autoApplyDefault: shouldAutoApply })
-            .finally(() => {
-                autoAppliedTemplateCategoryRef.current = categoryKey;
-            });
-    }, [viewTab, editingPost, form.category_id]);
-
-    async function handleSaveTemplateFromCurrentForm() {
-        if (!form.category_id) {
-            alert('Vui lòng chọn danh mục trước khi lưu template.');
-            return;
-        }
-
-        const latestContent = editorRef.current ? editorRef.current.innerHTML : (form.content || '');
-        const latestTitle = form.title || '';
-        const latestSummary = form.summary || '';
-
-        setTemplateDraftPayload({
-            category_id: form.category_id,
-            title_template: latestTitle,
-            summary_template: latestSummary,
-            content_template: latestContent,
-        });
-        setTemplateNameDraft(latestTitle || 'Template mới');
-        setShowTemplateNameModal(true);
-    }
-
-    function closeTemplateNameModal() {
-        if (templateSaving) {
-            return;
-        }
-        setShowTemplateNameModal(false);
-        setTemplateNameDraft('');
-        setTemplateDraftPayload(null);
-    }
-
-    async function confirmSaveTemplateFromModal() {
-        if (!templateDraftPayload) {
-            closeTemplateNameModal();
-            return;
-        }
-
-        const templateName = templateNameDraft.trim();
-        if (!templateName || !templateName.trim()) {
-            alert('Vui lòng nhập tên template.');
-            return;
-        }
-
-        setTemplateSaving(true);
-        try {
-            const createdTemplate = await postTemplatesAPI.create({
-                ...templateDraftPayload,
-                name: templateName,
-            });
-
-            await loadTemplatesForCategory(templateDraftPayload.category_id, { autoApplyDefault: false });
-            if (createdTemplate?.id) {
-                setSelectedTemplateId(String(createdTemplate.id));
-                await applyTemplateToForm(createdTemplate, { force: true });
-            }
-            closeTemplateNameModal();
-            alert('Đã lưu template thành công.');
-        } catch (err) {
-            alert('Lưu template thất bại: ' + (err.message || 'Lỗi không xác định'));
-        } finally {
-            setTemplateSaving(false);
-        }
-    }
-
-    async function handleApplySelectedTemplate() {
-        const template = templates.find((item) => String(item.id) === String(selectedTemplateId));
-        if (!template) {
-            return;
-        }
-        await applyTemplateToForm(template);
-    }
-
-    async function handleGenerateWithAI() {
-        setAiError('');
-        if (!aiKeywords.trim()) {
-            setAiError('Vui lòng nhập từ khóa trước khi gen AI.');
-            return;
-        }
-
-        setAiGenerating(true);
-        try {
-            const category = categories.find(c => String(c.id) === String(form.category_id));
-            const generated = await aiAPI.generatePost({
-                keywords: aiKeywords,
-                topic: aiTopic || form.title,
-                page_type: category?.page_type || apiFilters.page_type || 'news',
-            });
-
-            const generatedTitle = (generated.title || '').trim();
-            const generatedSummary = (generated.summary || '').trim();
-            const generatedContent = (generated.content || '').trim();
-
-            setForm(prev => {
-                const title = generatedTitle || prev.title;
-                return {
-                    ...prev,
-                    title,
-                    slug: slugifyPostTitle(title),
-                    summary: generatedSummary || prev.summary,
-                    content: generatedContent || prev.content,
-                };
-            });
-
-            // Reflect generated content immediately in the contenteditable editor.
-            if (generatedContent && editorRef.current) {
-                editorRef.current.innerText = generatedContent;
-            }
-        } catch (err) {
-            setAiError(err.message || 'Không thể gen nội dung AI');
-        } finally {
-            setAiGenerating(false);
-        }
-    }
-
     async function handleSave(e) {
         e.preventDefault();
         if (editorRef.current) {
@@ -1168,7 +945,7 @@ export default function PostsManagement() {
                                 <input type="text" className="form-control" value={form.title} onChange={e => handleFormChange('title', e.target.value)} placeholder="Nhập tiêu đề bài viết..." required />
                             </div>
 
-                            <div className="form-group">
+                            <div className="form-group full-row">
                                 <label className="form-label">Slug *</label>
                                 <input type="text" className="form-control" value={form.slug} onChange={e => handleFormChange('slug', e.target.value)} placeholder="slug-bai-viet" required />
                             </div>
@@ -1190,39 +967,6 @@ export default function PostsManagement() {
                                     </label>
                                 )}
                             </div>
-                        </div>
-
-                        <div className="ai-generator-box">
-                            <h3 className="ai-generator-title">🤖 Gen AI nội dung</h3>
-                            <div className="form-group">
-                                <label className="form-label">Từ khóa (phân tách bằng dấu phẩy) *</label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={aiKeywords}
-                                    onChange={e => setAiKeywords(e.target.value)}
-                                    placeholder="ví dụ: chào tân sinh viên, hoạt động đoàn, khoa CNTT"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Chủ đề (tuỳ chọn)</label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={aiTopic}
-                                    onChange={e => setAiTopic(e.target.value)}
-                                    placeholder="ví dụ: Chào tân sinh viên K66"
-                                />
-                            </div>
-                            {aiError && <p className="ai-error-text">{aiError}</p>}
-                            <button
-                                type="button"
-                                className="btn-ai"
-                                onClick={handleGenerateWithAI}
-                                disabled={aiGenerating}
-                            >
-                                {aiGenerating ? 'Đang gen AI...' : 'Gen AI tiêu đề + tóm tắt + nội dung'}
-                            </button>
                         </div>
 
                         <div className="wp-editor-shell">
@@ -1267,37 +1011,6 @@ export default function PostsManagement() {
                 </div>
             )}
 
-            {showTemplateNameModal && (
-                <div className="template-modal-overlay" onClick={closeTemplateNameModal}>
-                    <div className="template-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="template-modal-title">Đặt tên template</h3>
-                        <input
-                            type="text"
-                            className="form-control"
-                            value={templateNameDraft}
-                            onChange={(e) => setTemplateNameDraft(e.target.value)}
-                            placeholder="Nhập tên template..."
-                            autoFocus
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    confirmSaveTemplateFromModal();
-                                }
-                                if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    closeTemplateNameModal();
-                                }
-                            }}
-                        />
-                        <div className="template-modal-actions">
-                            <button type="button" className="btn-secondary" onClick={closeTemplateNameModal} disabled={templateSaving}>Hủy</button>
-                            <button type="button" className="btn-primary" onClick={confirmSaveTemplateFromModal} disabled={templateSaving}>
-                                {templateSaving ? 'Đang lưu...' : 'Lưu template'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {confirmModal}
         </div>

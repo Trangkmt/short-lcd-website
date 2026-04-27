@@ -6,7 +6,7 @@ const buildConfig = (host) => ({
     port: parseInt(process.env.DB_PORT, 10) || 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || 'MyAppDB'
+    database: process.env.DB_DATABASE || 'MyAppDB1'
 });
 
 async function testConnection(config) {
@@ -76,7 +76,7 @@ async function runTests() {
         console.log('─'.repeat(60));
         console.log(`DB_HOST=${successHost}`);
         console.log(`DB_PORT=${parseInt(process.env.DB_PORT, 10) || 3306}`);
-        console.log(`DB_DATABASE=${process.env.DB_DATABASE || 'MyAppDB'}`);
+        console.log(`DB_DATABASE=${process.env.DB_DATABASE || 'MyAppDB1'}`);
         console.log(`DB_USER=${process.env.DB_USER || 'root'}`);
         console.log('DB_PASSWORD=your_password');
     } else {

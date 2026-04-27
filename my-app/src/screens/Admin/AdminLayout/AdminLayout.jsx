@@ -7,7 +7,6 @@ import {
     isAdminFull,
     isContactManager,
     isPostAuthor,
-    isUtilityOnly,
 } from '../../../utils/adminPermissions';
 import {
     MenuIcon,
@@ -16,9 +15,7 @@ import {
     PostIcon,
     FolderIcon,
     UsersIcon,
-    TimelineIcon,
     MailIcon,
-    ToolsIcon,
     HomeIcon,
     LogoutIcon,
 } from '../../../SvgIcons';
@@ -32,7 +29,6 @@ export default function AdminLayout() {
     const currentUser = getStoredAdminUser();
     const showAdminTabs = isAdminFull(currentUser);
     const showPostTabs = isAdminFull(currentUser) || isPostAuthor(currentUser);
-    const showUtilityTab = !!currentUser?.id;
     const showContactTabs = isAdminFull(currentUser) || isContactManager(currentUser);
     const showDashboardTab = !!currentUser?.id;
     const isActive = (path) => location.pathname.startsWith(path);
@@ -45,18 +41,12 @@ export default function AdminLayout() {
     const membersTab = new URLSearchParams(location.search).get('tab') || 'student';
     const isMembersStudentActive = isMembersActive && membersTab === 'student';
     const isMembersTeacherActive = isMembersActive && membersTab === 'teacher';
-    const isUtilitiesActive = isActive('/admin/utilities');
     const isAccountActive = isActive('/admin/account');
-    const utilitiesTab = new URLSearchParams(location.search).get('tab') || 'bulk-export';
-    const isBulkExportActive = isUtilitiesActive && utilitiesTab === 'bulk-export';
-    const isSharedDocsActive = isUtilitiesActive && utilitiesTab === 'shared-docs';
     const pageLabel = (() => {
         if (location.pathname.startsWith('/admin/posts')) return 'Quản lý bài viết';
         if (location.pathname.startsWith('/admin/categories')) return 'Quản lý danh mục';
         if (location.pathname.startsWith('/admin/members')) return 'Quản lý thành viên';
         if (location.pathname.startsWith('/admin/contacts')) return 'Quản lý liên hệ';
-        if (location.pathname.startsWith('/admin/timeline')) return 'Quản lý sự kiện thường niên';
-        if (location.pathname.startsWith('/admin/utilities')) return 'Tiện ích khác';
         if (location.pathname.startsWith('/admin/account')) return 'Tài khoản của tôi';
         return 'Tổng quan quản trị';
     })();
@@ -66,7 +56,7 @@ export default function AdminLayout() {
             ? 'Quản lý liên hệ'
             : isPostAuthor(currentUser)
                 ? 'Biên tập nội dung'
-                : 'Quản trị tiện ích';
+                : 'Quản trị viên';
     const displayName = currentUser?.full_name || currentUser?.username || 'Quản trị viên';
 
     function handleLogout() {
@@ -92,7 +82,6 @@ export default function AdminLayout() {
 
     return (
         <div className="admin-layout">
-            {/* Sidebar */}
             <aside className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${isMobileNavOpen ? 'mobile-open' : ''}`}>
                 <div className="sidebar-header">
                     <h2 className="sidebar-logo">
@@ -186,16 +175,6 @@ export default function AdminLayout() {
                         </>
                     )}
 
-                    {showAdminTabs && (
-                        <Link
-                            to="/admin/timeline"
-                            className={`nav-item ${isActive('/admin/timeline') ? 'active' : ''}`}
-                        >
-                            <span className="nav-icon" aria-hidden="true"><TimelineIcon /></span>
-                            {!sidebarCollapsed && <span className="nav-label">Sự kiện thường niên</span>}
-                        </Link>
-                    )}
-
                     {showContactTabs && (
                         <Link
                             to="/admin/contacts"
@@ -206,44 +185,13 @@ export default function AdminLayout() {
                         </Link>
                     )}
 
-                    {showUtilityTab && (
-                        <>
-                            <Link
-                                to="/admin/utilities?tab=bulk-export"
-                                className="nav-item"
-                            >
-                                <span className="nav-icon" aria-hidden="true"><ToolsIcon /></span>
-                                {!sidebarCollapsed && <span className="nav-label">Tiện ích khác</span>}
-                            </Link>
-
-                            {!sidebarCollapsed && isUtilitiesActive && (
-                                <div className="nav-submenu" role="group" aria-label="Subtab tiện ích khác">
-                                    <Link
-                                        to="/admin/utilities?tab=bulk-export"
-                                        className={`nav-subitem ${isBulkExportActive ? 'active' : ''}`}
-                                    >
-                                        Xuất giấy mời/ chứng chỉ hàng loạt
-                                    </Link>
-                                    <Link
-                                        to="/admin/utilities?tab=shared-docs"
-                                        className={`nav-subitem ${isSharedDocsActive ? 'active' : ''}`}
-                                    >
-                                        Tài liệu chung
-                                    </Link>
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {showUtilityTab && (
-                        <Link
-                            to="/admin/account"
-                            className={`nav-item ${isAccountActive ? 'active' : ''}`}
-                        >
-                            <span className="nav-icon" aria-hidden="true"><UsersIcon /></span>
-                            {!sidebarCollapsed && <span className="nav-label">Tài khoản của tôi</span>}
-                        </Link>
-                    )}
+                    <Link
+                        to="/admin/account"
+                        className={`nav-item ${isAccountActive ? 'active' : ''}`}
+                    >
+                        <span className="nav-icon" aria-hidden="true"><UsersIcon /></span>
+                        {!sidebarCollapsed && <span className="nav-label">Tài khoản của tôi</span>}
+                    </Link>
 
                     <div className="nav-divider"></div>
 
@@ -268,7 +216,6 @@ export default function AdminLayout() {
                 ></button>
             )}
 
-            {/* Main Content */}
             <main className="admin-main">
                 <header className="admin-topbar">
                     <button

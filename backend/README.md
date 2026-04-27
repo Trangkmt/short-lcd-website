@@ -25,7 +25,7 @@ npm install
 
 ### 3. Tạo database MySQL
 
-Tạo database `MyAppDB` và import schema MySQL tương ứng của dự án.
+Tạo database `MyAppDB1` và import schema MySQL tương ứng của dự án.
 
 ### 4. Cấu hình .env
 
@@ -35,7 +35,7 @@ File `.env` đã có sẵn với cấu hình mặc định:
 # MySQL Configuration
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=MyAppDB
+DB_DATABASE=MyAppDB1
 DB_USER=root
 DB_PASSWORD=your_password
 
@@ -92,7 +92,6 @@ GET http://localhost:5000/api/health
 - `/api/organizations` - Quản lý tổ chức
 - `/api/contact` - Quản lý liên hệ
 - `/api/auth/login` - Đăng nhập
-- `/api/ai/generate-post` - Gen AI nội dung bài viết
 - `/api/uploads/image` - Upload ảnh lên Cloudinary
 
 Xem chi tiết trong [API-DOCUMENTATION.md](./API-DOCUMENTATION.md)

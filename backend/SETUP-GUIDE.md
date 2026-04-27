@@ -80,7 +80,7 @@ curl http://localhost:5000/api/health
 {
   "status": "OK",
   "database": "Connected",
-  "dbname": "MyAppDB",
+  "dbname": "MyAppDB1",
   "timestamp": "2024-03-11T10:00:00.000Z"
 }
 ```
@@ -150,10 +150,10 @@ npm install
 PORT=5001
 ```
 
-### ❌ Lỗi: "Database 'MyAppDB' does not exist"
+### ❌ Lỗi: "Database 'MyAppDB1' does not exist"
 
 **Giải pháp:**
-1. Tạo database `MyAppDB` trong MySQL
+1. Tạo database `MyAppDB1` trong MySQL
 2. Import schema MySQL của dự án
 3. Chạy lại `npm run test:sql`
 

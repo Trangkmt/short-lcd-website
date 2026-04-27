@@ -16,8 +16,6 @@ import {
   CategoriesManagement,
   MembersManagement,
   ContactsManagement,
-  OtherUtilities,
-  TimelineManagement,
   AccountInfo
 } from './screens/Admin';
 import { canAccessAdminPath, getDefaultAdminPath, getStoredAdminUser } from './utils/adminPermissions';
@@ -66,8 +64,6 @@ const App = () => {
           <Route path="achievements" element={<Navigate to="/admin/posts?page_type=achievement" replace />} />
           <Route path="members" element={<MembersManagement />} />
           <Route path="contacts" element={<ContactsManagement />} />
-          <Route path="timeline" element={<TimelineManagement />} />
-          <Route path="utilities" element={<OtherUtilities />} />
           <Route path="account" element={<AccountInfo />} />
         </Route>
       </Routes>

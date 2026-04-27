@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Homepage.css';
-import { newsAPI, timelineAPI } from '../../../services/api';
+import { newsAPI } from '../../../services/api';
 import NewsCard from '../../../components/NewsCard/NewsCard';
 import AchievementCard from '../../../components/AchievementCard/AchievementCard';
-import { Timeline } from '../../../components';
 import { formatVietnameseDate } from '../../../utils/date';
 import { ChevronLeftIcon, ChevronRightIcon } from '../../../SvgIcons';
 
@@ -55,7 +54,6 @@ const Homepage = () => {
   const [featuredActivity, setFeaturedActivity] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [heroSlides, setHeroSlides] = useState([]);
-  const [timelineEvents, setTimelineEvents] = useState([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [hoveredActivityIndex, setHoveredActivityIndex] = useState(null);
   const [activityImageIndex, setActivityImageIndex] = useState(0);
@@ -126,14 +124,6 @@ const Homepage = () => {
         setAchievements(filteredAchievements);
       })
       .catch(() => { });
-
-    timelineAPI.getPublic({ limit: 100 })
-      .then((data) => {
-        setTimelineEvents(asArray(data));
-      })
-      .catch(() => {
-        setTimelineEvents([]);
-      });
   }, []);
 
   useEffect(() => {
@@ -230,9 +220,6 @@ const Homepage = () => {
           </>
         )}
       </div>
-
-      <Timeline events={timelineEvents} />
-
       {/* Activity Section */}
       <div className="activity-section">
         <div className="activity-section__featured-box">

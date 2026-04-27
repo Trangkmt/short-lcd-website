@@ -443,10 +443,6 @@ const ROLE_OPTIONS = [
 
 const ALL_DEPARTMENTS = 'all_departments';
 const ALL_STUDENT_POSITIONS = 'all_student_positions';
-const BULK_NO_CHANGE = '__bulk_no_change__';
-const BULK_STATUS_ACTIVE = 'active';
-const BULK_STATUS_HIDDEN = 'hidden';
-
 export default function MembersManagement() {
     const { confirm, confirmModal } = useAdminConfirm();
     const location = useLocation();
@@ -460,12 +456,6 @@ export default function MembersManagement() {
     const [selectedMember, setSelectedMember] = useState(null);
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
-    const [selectedMemberIds, setSelectedMemberIds] = useState([]);
-    const [bulkDepartment, setBulkDepartment] = useState(BULK_NO_CHANGE);
-    const [bulkPosition, setBulkPosition] = useState(BULK_NO_CHANGE);
-    const [bulkStatus, setBulkStatus] = useState(BULK_NO_CHANGE);
-    const [bulkRole, setBulkRole] = useState(BULK_NO_CHANGE);
-    const [bulkUpdating, setBulkUpdating] = useState(false);
     const [csvImporting, setCsvImporting] = useState(false);
     const [memberImageUploading, setMemberImageUploading] = useState(false);
     const memberImageInputRef = useRef(null);
@@ -805,160 +795,6 @@ export default function MembersManagement() {
             setMemberImageUploading(false);
         }
     }
-
-    function toggleMemberSelection(memberId) {
-        setSelectedMemberIds((prev) => (
-            prev.includes(memberId)
-                ? prev.filter((id) => id !== memberId)
-                : [...prev, memberId]
-        ));
-    }
-
-    function toggleSelectAllVisible(checked, visibleIds) {
-        setSelectedMemberIds((prev) => {
-            const prevSet = new Set(prev);
-            if (checked) {
-                visibleIds.forEach((id) => prevSet.add(id));
-            } else {
-                visibleIds.forEach((id) => prevSet.delete(id));
-            }
-            return Array.from(prevSet);
-        });
-    }
-
-    function resetBulkControls() {
-        setBulkDepartment(BULK_NO_CHANGE);
-        setBulkPosition(BULK_NO_CHANGE);
-        setBulkStatus(BULK_NO_CHANGE);
-        setBulkRole(BULK_NO_CHANGE);
-    }
-
-    async function applyBulkUpdate(selectedMembers) {
-        if (!selectedMembers.length) {
-            alert('Vui lòng chọn ít nhất 1 thành viên.');
-            return;
-        }
-
-        if (
-            bulkDepartment === BULK_NO_CHANGE
-            && bulkPosition === BULK_NO_CHANGE
-            && bulkStatus === BULK_NO_CHANGE
-            && bulkRole === BULK_NO_CHANGE
-        ) {
-            alert('Vui lòng chọn ít nhất 1 trường cần cập nhật hàng loạt.');
-            return;
-        }
-
-        setBulkUpdating(true);
-        let successCount = 0;
-        let failedCount = 0;
-
-        try {
-            for (const member of selectedMembers) {
-                const memberType = inferMemberType(member);
-
-                const nextDepartment = memberType === TABS.STUDENT
-                    ? (
-                        bulkDepartment !== BULK_NO_CHANGE
-                            ? serializeDepartments([bulkDepartment])
-                            : (member.department ? serializeDepartments(normalizeDepartments(member.department)) : null)
-                    )
-                    : null;
-
-                const nextPosition = bulkPosition !== BULK_NO_CHANGE
-                    ? serializeDepartmentPositions(bulkPosition, memberType, member.department)
-                    : serializeDepartmentPositions(member.department_position, memberType, member.department);
-
-                const nextStatus = bulkStatus === BULK_NO_CHANGE
-                    ? !!member.is_active
-                    : bulkStatus === BULK_STATUS_ACTIVE;
-
-                const payload = {
-                    email: member.email,
-                    full_name: member.full_name,
-                    avatar_url: member.avatar_url || null,
-                    role: bulkRole !== BULK_NO_CHANGE ? normalizeRole(bulkRole) : normalizeRole(member.role),
-                    is_active: nextStatus,
-                    member_type: memberType,
-                    student_code: memberType === TABS.STUDENT ? (member.student_code || null) : null,
-                    class_name: memberType === TABS.STUDENT ? (member.class_name || null) : null,
-                    department: nextDepartment,
-                    department_position: nextPosition,
-                };
-
-                try {
-                    await usersAPI.update(member.id, payload);
-                    successCount += 1;
-                } catch (err) {
-                    failedCount += 1;
-                }
-            }
-
-            await fetchMembers();
-            setSelectedMemberIds([]);
-            resetBulkControls();
-            alert(`Cập nhật hàng loạt hoàn tất. Thành công: ${successCount}, Thất bại: ${failedCount}`);
-        } finally {
-            setBulkUpdating(false);
-        }
-    }
-
-    async function handleBulkHide(selectedMembers) {
-        if (!selectedMembers.length) {
-            alert('Vui lòng chọn ít nhất 1 thành viên.');
-            return;
-        }
-
-        const confirmed = await confirm({
-            title: 'Xác nhận ẩn hàng loạt',
-            message: `Bạn có chắc muốn ẩn ${selectedMembers.length} thành viên đã chọn không?`,
-            detail: 'Các thành viên đã chọn sẽ được chuyển sang trạng thái ẩn.',
-            variant: 'delete',
-            confirmText: 'Ẩn thành viên',
-            confirmButtonClassName: 'btn-action btn-delete',
-        });
-        if (!confirmed) {
-            return;
-        }
-
-        setBulkUpdating(true);
-        let successCount = 0;
-        let failedCount = 0;
-
-        try {
-            for (const member of selectedMembers) {
-                const memberType = inferMemberType(member);
-                const payload = {
-                    email: member.email,
-                    full_name: member.full_name,
-                    avatar_url: member.avatar_url || null,
-                    role: normalizeRole(member.role),
-                    is_active: false,
-                    member_type: memberType,
-                    student_code: memberType === TABS.STUDENT ? (member.student_code || null) : null,
-                    class_name: memberType === TABS.STUDENT ? (member.class_name || null) : null,
-                    department: memberType === TABS.STUDENT
-                        ? (member.department ? serializeDepartments(normalizeDepartments(member.department)) : null)
-                        : null,
-                    department_position: serializeDepartmentPositions(member.department_position, memberType, member.department),
-                };
-
-                try {
-                    await usersAPI.update(member.id, payload);
-                    successCount += 1;
-                } catch (err) {
-                    failedCount += 1;
-                }
-            }
-
-            await fetchMembers();
-            setSelectedMemberIds([]);
-            alert(`Ẩn hàng loạt hoàn tất. Thành công: ${successCount}, Thất bại: ${failedCount}`);
-        } finally {
-            setBulkUpdating(false);
-        }
-    }
-
     const filteredMembers = members.filter((member) => inferMemberType(member) === activeTab);
     const normalizedSearchQuery = normalizeSearchText(searchQuery);
     const searchedMembers = normalizedSearchQuery
@@ -997,18 +833,6 @@ export default function MembersManagement() {
     const visibleMembers = showHidden
         ? positionFilteredMembers
         : positionFilteredMembers.filter((member) => !!member.is_active);
-
-    const visibleMemberIds = visibleMembers
-        .map((member) => member.id)
-        .filter((id) => id !== undefined && id !== null);
-    const selectedVisibleMembers = visibleMembers.filter((member) => selectedMemberIds.includes(member.id));
-    const isAllVisibleSelected = visibleMemberIds.length > 0 && visibleMemberIds.every((id) => selectedMemberIds.includes(id));
-    const isSomeVisibleSelected = visibleMemberIds.some((id) => selectedMemberIds.includes(id));
-
-    useEffect(() => {
-        const visibleIdSet = new Set(visibleMemberIds);
-        setSelectedMemberIds((prev) => prev.filter((id) => visibleIdSet.has(id)));
-    }, [activeTab, showHidden, selectedDepartment, selectedStudentPosition, members]);
 
     const isStudentTab = activeTab === TABS.STUDENT;
     const pageTitle = isStudentTab ? 'Danh sách Sinh viên' : 'Danh sách Thầy cô';
@@ -1092,81 +916,6 @@ export default function MembersManagement() {
                 </label>
             </div>
 
-            {selectedVisibleMembers.length > 0 && (
-                <div className="members-bulk-toolbar">
-                    {isStudentTab && (
-                        <select
-                            className="members-bulk-toolbar__select"
-                            value={bulkDepartment}
-                            onChange={(e) => setBulkDepartment(e.target.value)}
-                        >
-                            <option value={BULK_NO_CHANGE}>Ban: Không đổi</option>
-                            {DEPARTMENT_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    <select
-                        className="members-bulk-toolbar__select"
-                        value={bulkPosition}
-                        onChange={(e) => setBulkPosition(e.target.value)}
-                    >
-                        <option value={BULK_NO_CHANGE}>Chức vụ: Không đổi</option>
-                        {(isStudentTab ? STUDENT_POSITIONS : TEACHER_POSITIONS).map((position) => (
-                            <option key={position} value={position}>{position}</option>
-                        ))}
-                    </select>
-
-                    <select
-                        className="members-bulk-toolbar__select"
-                        value={bulkStatus}
-                        onChange={(e) => setBulkStatus(e.target.value)}
-                    >
-                        <option value={BULK_NO_CHANGE}>Trạng thái: Không đổi</option>
-                        <option value={BULK_STATUS_ACTIVE}>Đang hoạt động</option>
-                        <option value={BULK_STATUS_HIDDEN}>Đã ẩn</option>
-                    </select>
-
-                    <select
-                        className="members-bulk-toolbar__select"
-                        value={bulkRole}
-                        onChange={(e) => setBulkRole(e.target.value)}
-                    >
-                        <option value={BULK_NO_CHANGE}>Role: Không đổi</option>
-                        {ROLE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                    </select>
-
-                    <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => applyBulkUpdate(selectedVisibleMembers)}
-                        disabled={bulkUpdating}
-                    >
-                        {bulkUpdating ? 'Đang cập nhật...' : `Cập nhật hàng loạt (${selectedVisibleMembers.length})`}
-                    </button>
-
-                    <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => handleBulkHide(selectedVisibleMembers)}
-                        disabled={bulkUpdating}
-                    >
-                        Ẩn hàng loạt
-                    </button>
-
-                    <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => setSelectedMemberIds([])}
-                        disabled={bulkUpdating}
-                    >
-                        Bỏ chọn
-                    </button>
-                </div>
-            )}
 
             {loading ? (
                 <p className="loading-text">Đang tải...</p>
@@ -1176,17 +925,6 @@ export default function MembersManagement() {
                         <thead>
                             {isStudentTab ? (
                                 <tr>
-                                    <th className="select-col">
-                                        <input
-                                            type="checkbox"
-                                            checked={isAllVisibleSelected}
-                                            ref={(el) => {
-                                                if (el) el.indeterminate = !isAllVisibleSelected && isSomeVisibleSelected;
-                                            }}
-                                            onChange={(e) => toggleSelectAllVisible(e.target.checked, visibleMemberIds)}
-                                            aria-label="Chọn tất cả thành viên hiển thị"
-                                        />
-                                    </th>
                                     <th>Ảnh</th>
                                     <th>Họ và tên</th>
                                     <th>Mã sinh viên</th>
@@ -1198,17 +936,6 @@ export default function MembersManagement() {
                                 </tr>
                             ) : (
                                 <tr>
-                                    <th className="select-col">
-                                        <input
-                                            type="checkbox"
-                                            checked={isAllVisibleSelected}
-                                            ref={(el) => {
-                                                if (el) el.indeterminate = !isAllVisibleSelected && isSomeVisibleSelected;
-                                            }}
-                                            onChange={(e) => toggleSelectAllVisible(e.target.checked, visibleMemberIds)}
-                                            aria-label="Chọn tất cả thành viên hiển thị"
-                                        />
-                                    </th>
                                     <th>Ảnh</th>
                                     <th>Họ và tên</th>
                                     <th>Gmail</th>
@@ -1220,7 +947,7 @@ export default function MembersManagement() {
                         <tbody>
                             {visibleMembers.length === 0 && (
                                 <tr>
-                                    <td colSpan={isStudentTab ? 9 : 6} className="empty-cell">
+                                    <td colSpan={isStudentTab ? 8 : 5} className="empty-cell">
                                         Chưa có thành viên phù hợp
                                     </td>
                                 </tr>
@@ -1229,14 +956,6 @@ export default function MembersManagement() {
                             {visibleMembers.map((member) => (
                                 isStudentTab ? (
                                     <tr key={member.id} className={!member.is_active ? 'row-hidden' : ''}>
-                                        <td className="select-col">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedMemberIds.includes(member.id)}
-                                                onChange={() => toggleMemberSelection(member.id)}
-                                                aria-label={`Chọn ${member.full_name || 'thành viên'}`}
-                                            />
-                                        </td>
                                         <td className="member-avatar-cell">
                                             {member.avatar_url ? (
                                                 <img src={member.avatar_url} alt={member.full_name || 'Ảnh thành viên'} className="member-avatar-thumb" />
@@ -1275,14 +994,6 @@ export default function MembersManagement() {
                                     </tr>
                                 ) : (
                                     <tr key={member.id} className={!member.is_active ? 'row-hidden' : ''}>
-                                        <td className="select-col">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedMemberIds.includes(member.id)}
-                                                onChange={() => toggleMemberSelection(member.id)}
-                                                aria-label={`Chọn ${member.full_name || 'thành viên'}`}
-                                            />
-                                        </td>
                                         <td className="member-avatar-cell">
                                             {member.avatar_url ? (
                                                 <img src={member.avatar_url} alt={member.full_name || 'Ảnh thành viên'} className="member-avatar-thumb" />

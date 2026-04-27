@@ -25,7 +25,7 @@ const buildMySqlConfig = ({ multipleStatements = false, includePoolOptions = fal
     const config = {
         host: process.env.DB_HOST || process.env.DB_SERVER || 'localhost',
         port: parseInt(process.env.DB_PORT, 10) || 3306,
-        database: process.env.DB_DATABASE || 'MyAppDB',
+        database: process.env.DB_DATABASE || 'MyAppDB1',
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD || '',
         multipleStatements,

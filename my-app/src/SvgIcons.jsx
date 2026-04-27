@@ -168,29 +168,6 @@ export function UsersIcon(props) {
     );
 }
 
-export function TimelineIcon(props) {
-    return (
-        <IconBase {...props}>
-            <path d="M4 6H20" />
-            <path d="M4 12H20" />
-            <path d="M4 18H20" />
-            <circle cx="7" cy="6" r="1" />
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="17" cy="18" r="1" />
-        </IconBase>
-    );
-}
-
-export function ToolsIcon(props) {
-    return (
-        <IconBase {...props}>
-            <path d="M14.7 6.3L17.7 3.3C18.5 2.5 19.8 2.5 20.6 3.3C21.4 4.1 21.4 5.4 20.6 6.2L17.6 9.2" />
-            <path d="M13.3 7.7L4 17V20H7L16.3 10.7" />
-            <path d="M3 3L8 8" />
-        </IconBase>
-    );
-}
-
 export function HomeIcon(props) {
     return (
         <IconBase {...props}>

@@ -4,7 +4,6 @@
 
 Hệ thống admin hoàn chỉnh để quản lý tất cả các hoạt động của Liên Chi Đoàn Khoa CNTT, bao gồm:
 
-- ✅ Quản lý bài viết (tạo thủ công & tích hợp AI)
 - ✅ Quản lý danh mục
 - ✅ Quản lý thành tích nổi bật
 - ✅ Quản lý thành viên
@@ -50,7 +49,6 @@ src/screens/Admin/
 ### 1. Dashboard (Trang tổng quan)
 - **Thống kê nhanh**: Số lượng bài viết, bài chờ duyệt, thành viên, liên hệ mới
 - **Bài viết gần đây**: Danh sách 4 bài viết mới nhất
-- **Hoạt động gần đây**: Timeline các hoạt động của admin
 - **Thao tác nhanh**: Shortcut đến các tính năng chính
 
 ### 2. Quản lý bài viết
@@ -63,12 +61,10 @@ src/screens/Admin/
 
 #### Tạo bài viết:
 - **Thủ công**: Nhập thông tin bằng tay
-- **Tích hợp AI**: Tự động tạo nội dung từ yêu cầu
 
 #### Form tạo bài viết gồm:
 - Danh mục (dropdown)
 - Tiêu đề
-- Nội dung (textarea hoặc AI)
 - Ảnh bìa (upload)
 - Checkbox đặt làm nổi bật
 
@@ -188,7 +184,6 @@ Tất cả trang admin đều responsive:
 ### Tạo bài viết mới:
 1. Vào `/admin/posts`
 2. Click "Tạo bài viết mới"
-3. Chọn chế độ: Thủ công hoặc AI
 4. Điền thông tin và submit
 
 ### Quản lý danh mục:
@@ -210,11 +205,6 @@ Tất cả trang admin đều responsive:
 
 ## 📝 Notes
 
-### Tính năng AI (PostsManagement):
-- Hiện đang có UI cho chế độ "Tạo bằng AI"
-- Cần tích hợp với API AI (OpenAI, Gemini, etc.)
-- Form có textarea để nhập yêu cầu cho AI
-- Button "Tạo nội dung bằng AI" để trigger AI generation
 
 ### Form validation:
 - Hiện tại chưa có validation

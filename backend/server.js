@@ -27,12 +27,8 @@ const activitiesRoutes = require('./routes/activities');
 const organizationsRoutes = require('./routes/organizations');
 const contactRoutes = require('./routes/contact');
 const authRoutes = require('./routes/auth');
-const aiRoutes = require('./routes/ai');
 const migrationsRoutes = require('./routes/migrations');
 const uploadsRoutes = require('./routes/uploads');
-const sharedFoldersRoutes = require('./routes/sharedFolders');
-const postTemplatesRoutes = require('./routes/postTemplates');
-const timelineRoutes = require('./routes/timeline');
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
@@ -62,12 +58,8 @@ app.use('/api/activities', activitiesRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/migrations', migrationsRoutes);
 app.use('/api/uploads', uploadsRoutes);
-app.use('/api/shared-folders', sharedFoldersRoutes);
-app.use('/api/post-templates', postTemplatesRoutes);
-app.use('/api/timeline', timelineRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -84,11 +76,7 @@ app.get('/', (req, res) => {
             organizations: '/api/organizations',
             contact: '/api/contact',
             auth: '/api/auth',
-            ai: '/api/ai',
             uploads: '/api/uploads',
-            sharedFolders: '/api/shared-folders',
-            postTemplates: '/api/post-templates',
-            timeline: '/api/timeline'
         }
     });
 });
@@ -114,7 +102,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log('='.repeat(60));
     console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-    console.log(`📊 Database: ${process.env.DB_DATABASE || 'MyAppDB'}`);
+    console.log(`📊 Database: ${process.env.DB_DATABASE || 'MyAppDB1'}`);
     console.log(`🔗 Server: ${DB_HOST}`);
     console.log('='.repeat(60));
     console.log('\n📋 API Endpoints:');
@@ -127,11 +115,7 @@ app.listen(PORT, () => {
     console.log(`  GET  http://localhost:${PORT}/api/organizations`);
     console.log(`  GET  http://localhost:${PORT}/api/contact`);
     console.log(`  POST http://localhost:${PORT}/api/auth/login`);
-    console.log(`  POST http://localhost:${PORT}/api/ai/generate-post`);
     console.log(`  POST http://localhost:${PORT}/api/uploads/image`);
-    console.log(`  GET  http://localhost:${PORT}/api/shared-folders`);
-    console.log(`  GET  http://localhost:${PORT}/api/post-templates`);
-    console.log(`  GET  http://localhost:${PORT}/api/timeline`);
     console.log('\n');
 });
 

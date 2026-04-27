@@ -10,7 +10,6 @@
 }
 
 .homepage {
-    --timeline-sidebar-width: 360px;
     width: 100%;
     max-width: 1480px;
     margin: 0 auto;
@@ -20,7 +19,7 @@
     color: var(--color-black);
     font-family: var(--font-work-sans);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--timeline-sidebar-width);
+    grid-template-columns: 1fr;
     grid-template-rows: auto auto auto auto;
     gap: var(--space-8);
 }
@@ -428,7 +427,7 @@
 .hero-section__content {
     position: absolute;
     left: 80px;
-    right: max(120px, calc(var(--timeline-sidebar-width) + 28px));
+    right: 120px;
     bottom: 58px;
     z-index: 2;
     max-width: 760px;

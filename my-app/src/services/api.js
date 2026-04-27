@@ -10,16 +10,7 @@ function normalizeApiErrorMessage(message) {
 
     const lowerMessage = message.toLowerCase();
 
-    if (
-        lowerMessage.includes('high demand') ||
-        lowerMessage.includes('spikes in demand') ||
-        lowerMessage.includes('please try again later') ||
-        lowerMessage.includes('resource_exhausted') ||
-        lowerMessage.includes('quota') ||
-        lowerMessage.includes('rate limit')
-    ) {
-        return 'AI đang quá tải hoặc bị giới hạn tạm thời. Vui lòng thử lại sau ít phút.';
-    }
+
 
     if (lowerMessage.includes('cannot delete or update a parent row') && lowerMessage.includes('categories')) {
         return 'Không thể xóa danh mục vì đang liên kết với bài viết, nội dung hoặc danh mục con. Vui lòng chuyển hoặc xóa dữ liệu liên quan trước.';
@@ -154,49 +145,6 @@ export const authAPI = {
     changePassword: (data) => apiFetch('/auth/change-password', { method: 'PUT', body: data }),
 };
 
-export const aiAPI = {
-    generatePost: (data) => apiFetch('/ai/generate-post', { method: 'POST', body: data }),
-};
-
-export const postTemplatesAPI = {
-    getAll: (params = {}) => apiFetch(`/post-templates?${new URLSearchParams(params)}`),
-    create: (data) => apiFetch('/post-templates', { method: 'POST', body: data }),
-    update: (id, data) => apiFetch(`/post-templates/${id}`, { method: 'PUT', body: data }),
-    delete: (id) => apiFetch(`/post-templates/${id}`, { method: 'DELETE' }),
-};
-
 export const uploadsAPI = {
     uploadImage: (fileData, folder) => apiFetch('/uploads/image', { method: 'POST', body: { fileData, folder } }),
-};
-
-export const sharedFoldersAPI = {
-    getFolders: () => apiFetch('/shared-folders'),
-    getFolderFiles: (folderId) => apiFetch(`/shared-folders/${encodeURIComponent(folderId)}/files`),
-    uploadFile: (folderId, data) => apiFetch(`/shared-folders/${encodeURIComponent(folderId)}/files`, { method: 'POST', body: data }),
-    updateFile: (folderId, data) => apiFetch(`/shared-folders/${encodeURIComponent(folderId)}/files`, { method: 'PUT', body: data }),
-    deleteFile: (folderId, publicId) => apiFetch(`/shared-folders/${encodeURIComponent(folderId)}/files`, { method: 'DELETE', body: { publicId } }),
-    getDownloadInfo: (folderId, publicId) => apiFetch(`/shared-folders/${encodeURIComponent(folderId)}/files/download?publicId=${encodeURIComponent(publicId)}`),
-};
-
-export const timelineAPI = {
-    getPublic: (params = {}) => apiFetch(`/timeline?${new URLSearchParams(params)}`),
-    getAdmin: async (params = {}) => {
-        const query = new URLSearchParams(params).toString();
-        const querySuffix = query ? `?${query}` : '';
-
-        try {
-            return await apiFetch(`/timeline/admin/list${querySuffix}`);
-        } catch (error) {
-            // Backward compatibility for backends exposing /timeline/admin instead of /timeline/admin/list.
-            if (error?.status !== 404) {
-                throw error;
-            }
-
-            return apiFetch(`/timeline/admin${querySuffix}`);
-        }
-    },
-    getById: (id) => apiFetch(`/timeline/${id}`),
-    create: (data) => apiFetch('/timeline', { method: 'POST', body: data }),
-    update: (id, data) => apiFetch(`/timeline/${id}`, { method: 'PUT', body: data }),
-    delete: (id) => apiFetch(`/timeline/${id}`, { method: 'DELETE' }),
 };

@@ -14,8 +14,8 @@ const normalizeScript = (rawSql) => {
 
     script = script
         .replace(/CREATE\s+DATABASE\s+IF\s+NOT\s+EXISTS[\s\S]*?;/i, '')
-        .replace(/USE\s+MyAppDB\s*;/gi, '')
-        .replace(/\bMyAppDB\./gi, '');
+        .replace(/USE\s+MyAppDB1\s*;/gi, '')
+        .replace(/\bMyAppDB1\./gi, '');
 
     return script;
 };

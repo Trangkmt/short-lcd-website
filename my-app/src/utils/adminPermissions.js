@@ -83,16 +83,12 @@ export function canAccessAdminPath(user, pathname) {
         return true;
     }
 
-    if (pathname.startsWith('/admin/utilities')) {
-        return true;
-    }
-
     if (isUtilityOnly(user)) {
-        return pathname.startsWith('/admin/utilities');
+        return pathname.startsWith('/admin/account');
     }
 
     if (isContactManager(user)) {
-        return pathname.startsWith('/admin/contacts') || pathname.startsWith('/admin/utilities');
+        return pathname.startsWith('/admin/contacts');
     }
 
     if (isPostAuthor(user)) {
@@ -104,7 +100,7 @@ export function canAccessAdminPath(user, pathname) {
 
 export function getDefaultAdminPath(user) {
     if (isAdminFull(user)) return '/admin';
-    if (isUtilityOnly(user)) return '/admin/utilities';
+    if (isUtilityOnly(user)) return '/admin/account';
     if (isContactManager(user)) return '/admin/contacts';
     if (isPostAuthor(user)) return '/admin/posts';
     return '/admin/login';

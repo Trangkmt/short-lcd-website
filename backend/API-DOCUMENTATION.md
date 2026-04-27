@@ -7,30 +7,6 @@ http://localhost:5000/api
 
 ## Endpoints
 
-## 🤖 AI API
-
-### POST `/api/ai/generate-post`
-Tạo nội dung bài viết tự động bằng AI theo từ khóa.
-
-```json
-{
-  "keywords": "tu khoa 1, tu khoa 2",
-  "topic": "chu de bai viet",
-  "page_type": "news"
-}
-```
-
-**Response:**
-```json
-{
-  "title": "...",
-  "summary": "...",
-  "content": "..."
-}
-```
-
----
-
 ## 🔐 Auth API
 
 ### POST `/api/auth/login`
