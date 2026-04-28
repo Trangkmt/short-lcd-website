@@ -7,8 +7,6 @@ import { normalizeRole, ROLE_GROUPS } from '../../../utils/adminPermissions';
 import { PlusIcon, EditIcon, HideIcon, ShowIcon, CloseIcon } from '../../../SvgIcons';
 import useAdminConfirm from '../useAdminConfirm';
 
-const CSV_HEADERS = ['Họ và tên', 'Mã sinh viên', 'Lớp', 'Gmail', 'Ban', 'Chức vụ'];
-
 const TABS = {
     STUDENT: 'student',
     TEACHER: 'teacher',
@@ -323,24 +321,6 @@ function readFileAsDataUrl(file) {
     });
 }
 
-function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error('Không đọc được file CSV'));
-        reader.readAsText(file, 'utf-8');
-    });
-}
-
-function normalizeCsvHeader(value) {
-    return String(value || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
 function normalizeSearchText(value) {
     return String(value || '')
         .toLowerCase()
@@ -348,91 +328,6 @@ function normalizeSearchText(value) {
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/đ/g, 'd')
         .trim();
-}
-
-function parseCsvLine(line, delimiter = ',') {
-    const fields = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let index = 0; index < line.length; index += 1) {
-        const char = line[index];
-        const nextChar = line[index + 1];
-
-        if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-                current += '"';
-                index += 1;
-            } else {
-                inQuotes = !inQuotes;
-            }
-            continue;
-        }
-
-        if (char === delimiter && !inQuotes) {
-            fields.push(current.trim());
-            current = '';
-            continue;
-        }
-
-        current += char;
-    }
-
-    fields.push(current.trim());
-    return fields;
-}
-
-function parseCsvContent(content) {
-    const cleaned = String(content || '').replace(/^\uFEFF/, '');
-    const lines = cleaned
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-    if (lines.length < 2) return [];
-
-    const firstLine = lines[0];
-    const delimiterCandidates = [',', ';', '\t'];
-    const bestDelimiter = delimiterCandidates
-        .map((delimiter) => ({ delimiter, columns: parseCsvLine(firstLine, delimiter).length }))
-        .sort((a, b) => b.columns - a.columns)[0].delimiter;
-
-    const headers = parseCsvLine(firstLine, bestDelimiter).map(normalizeCsvHeader);
-    const parsedRows = [];
-
-    for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
-        const values = parseCsvLine(lines[lineIndex], bestDelimiter);
-        const row = {};
-
-        headers.forEach((header, headerIndex) => {
-            row[header] = values[headerIndex] || '';
-        });
-
-        parsedRows.push(row);
-    }
-
-    return parsedRows;
-}
-
-function csvEscape(value) {
-    const raw = String(value === null || value === undefined ? '' : value);
-    if (raw.includes('"') || raw.includes(',') || raw.includes('\n')) {
-        return `"${raw.replace(/"/g, '""')}"`;
-    }
-    return raw;
-}
-
-function downloadCsvFile(filename, rows) {
-    const content = rows.map((row) => row.map(csvEscape).join(',')).join('\n');
-    const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
 }
 
 const ROLE_OPTIONS = [
@@ -456,10 +351,8 @@ export default function MembersManagement() {
     const [selectedMember, setSelectedMember] = useState(null);
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
-    const [csvImporting, setCsvImporting] = useState(false);
     const [memberImageUploading, setMemberImageUploading] = useState(false);
     const memberImageInputRef = useRef(null);
-    const csvInputRef = useRef(null);
     const activeTab = (() => {
         const tab = new URLSearchParams(location.search).get('tab');
         return tab === TABS.TEACHER ? TABS.TEACHER : TABS.STUDENT;
@@ -628,153 +521,6 @@ export default function MembersManagement() {
         memberImageInputRef.current?.click();
     }
 
-    function downloadCsvTemplate() {
-        const rows = [
-            CSV_HEADERS,
-            ['Nguyễn Văn A', '22120001', '22CTT1', '22120001@fit.hcmus.edu.vn', 'Ban truyền thông kỹ thuật', 'Thành viên'],
-            ['Trần Thị B', '22120002', '22CTT2', '22120002@fit.hcmus.edu.vn', 'Ban tổ chức sự kiện', 'Phó ban'],
-        ];
-        downloadCsvFile('members-import-template.csv', rows);
-    }
-
-    function exportMembersCsv() {
-        const rows = [
-            CSV_HEADERS,
-            ...visibleMembers.map((member) => {
-                const memberType = inferMemberType(member);
-                return [
-                    member.full_name || '',
-                    memberType === TABS.STUDENT ? (member.student_code || '') : '',
-                    memberType === TABS.STUDENT ? (member.class_name || '') : '',
-                    member.email || '',
-                    memberType === TABS.STUDENT ? getDepartmentLabel(member.department) : '',
-                    getDisplayDepartmentPosition(member.department_position, memberType, member.department),
-                ];
-            }),
-        ];
-
-        const fileSuffix = activeTab === TABS.STUDENT ? 'students' : 'teachers';
-        downloadCsvFile(`members-${fileSuffix}.csv`, rows);
-    }
-
-    function triggerCsvImport() {
-        csvInputRef.current?.click();
-    }
-
-    function getCsvValue(row, candidates) {
-        for (const header of candidates) {
-            const normalized = normalizeCsvHeader(header);
-            if (row[normalized] !== undefined) {
-                return String(row[normalized] || '').trim();
-            }
-        }
-        return '';
-    }
-
-    async function handleCsvImport(event) {
-        const file = event.target.files?.[0];
-        event.target.value = '';
-        if (!file) return;
-
-        try {
-            setCsvImporting(true);
-
-            const content = await readFileAsText(file);
-            const parsedRows = parseCsvContent(content);
-
-            if (parsedRows.length === 0) {
-                alert('File CSV không có dữ liệu hợp lệ.');
-                return;
-            }
-
-            const existingMembers = Array.isArray(members) ? members : [];
-            let successCount = 0;
-            let failedCount = 0;
-            const failedRows = [];
-
-            for (let rowIndex = 0; rowIndex < parsedRows.length; rowIndex += 1) {
-                const row = parsedRows[rowIndex];
-                const fullName = getCsvValue(row, ['Họ và tên', 'Ho va ten', 'Full name']);
-                const studentCode = getCsvValue(row, ['Mã sinh viên', 'Ma sinh vien', 'Student code']);
-                const className = getCsvValue(row, ['Lớp', 'Lop', 'Class']);
-                const email = getCsvValue(row, ['Gmail', 'Email']);
-                const departmentRaw = getCsvValue(row, ['Ban', 'Department']);
-                const positionRaw = getCsvValue(row, ['Chức vụ', 'Chuc vu', 'Position']);
-
-                if (!fullName || !email) {
-                    failedCount += 1;
-                    failedRows.push(`Dòng ${rowIndex + 2}: thiếu Họ và tên hoặc Gmail`);
-                    continue;
-                }
-
-                const memberType = studentCode || className || departmentRaw ? TABS.STUDENT : TABS.TEACHER;
-
-                if (memberType === TABS.STUDENT && (!studentCode || !className || !departmentRaw || !positionRaw)) {
-                    failedCount += 1;
-                    failedRows.push(`Dòng ${rowIndex + 2}: sinh viên cần đủ Mã sinh viên, Lớp, Ban, Chức vụ`);
-                    continue;
-                }
-
-                const normalizedDepartments = memberType === TABS.STUDENT
-                    ? normalizeDepartments(departmentRaw)
-                    : [];
-
-                const payload = {
-                    email,
-                    full_name: fullName,
-                    avatar_url: null,
-                    role: ROLE_GROUPS.UTILITY_ONLY,
-                    is_active: true,
-                    member_type: memberType,
-                    student_code: memberType === TABS.STUDENT ? studentCode : null,
-                    class_name: memberType === TABS.STUDENT ? className : null,
-                    department: memberType === TABS.STUDENT ? serializeDepartments(normalizedDepartments) : null,
-                    department_position: serializeDepartmentPositions(positionRaw, memberType, normalizedDepartments),
-                };
-
-                const existing = existingMembers.find((member) => {
-                    const sameStudentCode = memberType === TABS.STUDENT
-                        && !!studentCode
-                        && String(member.student_code || '').trim().toLowerCase() === studentCode.toLowerCase();
-                    const sameEmail = String(member.email || '').trim().toLowerCase() === email.toLowerCase();
-                    return sameStudentCode || sameEmail;
-                });
-
-                try {
-                    if (existing) {
-                        await usersAPI.update(existing.id, {
-                            ...payload,
-                            avatar_url: existing.avatar_url || null,
-                            role: normalizeRole(existing.role),
-                        });
-                    } else {
-                        await usersAPI.create({
-                            username: generateUsername(email),
-                            password: studentCode || '12345678',
-                            ...payload,
-                        });
-                    }
-                    successCount += 1;
-                } catch (err) {
-                    failedCount += 1;
-                    failedRows.push(`Dòng ${rowIndex + 2}: ${err.message}`);
-                }
-            }
-
-            await fetchMembers();
-
-            const failPreview = failedRows.slice(0, 5).join('\n');
-            alert(
-                `Nhập CSV hoàn tất. Thành công: ${successCount}, Thất bại: ${failedCount}`
-                + (failPreview ? `\n\nChi tiết lỗi:\n${failPreview}` : '')
-            );
-        } catch (err) {
-            alert(`Nhập CSV thất bại: ${err.message}`);
-        } finally {
-            setCsvImporting(false);
-        }
-    }
-
     async function handleMemberImageUpload(event) {
         const file = event.target.files?.[0];
         event.target.value = '';
@@ -844,18 +590,6 @@ export default function MembersManagement() {
                     <h1 className="page-title">{pageTitle}</h1>
                 </div>
                 <div className="members-header-actions">
-                    <button type="button" className="btn-secondary" onClick={downloadCsvTemplate}>Tải CSV mẫu</button>
-                    <button type="button" className="btn-secondary" onClick={exportMembersCsv}>Xuất CSV</button>
-                    <button type="button" className="btn-secondary" onClick={triggerCsvImport} disabled={csvImporting}>
-                        {csvImporting ? 'Đang nhập...' : 'Nhập CSV'}
-                    </button>
-                    <input
-                        ref={csvInputRef}
-                        type="file"
-                        accept=".csv,text/csv"
-                        onChange={handleCsvImport}
-                        style={{ display: 'none' }}
-                    />
                     <button className="btn-primary" onClick={openCreate}>
                         <span className="btn-icon" aria-hidden="true"><PlusIcon /></span>
                         Thêm thành viên mới

@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import mammoth from 'mammoth';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
 import './PostsManagement.css';
 import { SearchBar } from '../../../components';
 import { newsAPI, categoriesAPI, usersAPI, uploadsAPI } from '../../../services/api';
@@ -67,112 +65,6 @@ function resolvePostUploadFolder(pageType) {
     return CLOUDINARY_POST_FOLDER_BY_PAGE_TYPE[normalizedPageType] || CLOUDINARY_POST_FOLDER_BY_PAGE_TYPE.news;
 }
 
-function normalizeDocText(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
-function isWholeParagraphStyled(paragraphEl, allowedTags) {
-    if (!paragraphEl) return false;
-    const html = String(paragraphEl.innerHTML || '').trim();
-    if (!html) return false;
-
-    const pattern = new RegExp(`^<(${allowedTags.join('|')})(\\s[^>]*)?>[\\s\\S]*<\\/\\1>$`, 'i');
-    return pattern.test(html);
-}
-
-function extractStructuredDocContentFromHtml(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(`<div>${html || ''}</div>`, 'text/html');
-    const blockNodes = Array.from(doc.body.querySelectorAll('p,h1,h2,h3,h4,li'));
-
-    const blocks = blockNodes
-        .map((node, index) => ({
-            index,
-            node,
-            text: normalizeDocText(node.textContent),
-            html: node.outerHTML,
-            isBoldBlock: node.tagName === 'H1' || isWholeParagraphStyled(node, ['strong', 'b']),
-            isItalicBlock: isWholeParagraphStyled(node, ['em', 'i']),
-        }))
-        .filter((item) => !!item.text);
-
-    if (!blocks.length) {
-        return { title: '', subtitle: '', bodyHtml: '<p><br/></p>' };
-    }
-
-    let titleIndex = blocks.find((item) => item.isBoldBlock)?.index;
-    if (titleIndex === undefined) {
-        titleIndex = blocks[0].index;
-    }
-
-    let subtitleIndex = blocks.find((item) => item.index !== titleIndex && item.isItalicBlock)?.index;
-    if (subtitleIndex === undefined) {
-        const fallback = blocks.find((item) => item.index !== titleIndex);
-        subtitleIndex = fallback ? fallback.index : undefined;
-    }
-
-    const title = blocks.find((item) => item.index === titleIndex)?.text || '';
-    const subtitle = subtitleIndex === undefined
-        ? ''
-        : (blocks.find((item) => item.index === subtitleIndex)?.text || '');
-
-    const bodyBlocks = blocks.filter((item) => item.index !== titleIndex && item.index !== subtitleIndex);
-    const bodyHtml = bodyBlocks.length ? bodyBlocks.map((item) => item.html).join('') : '<p><br/></p>';
-
-    return { title, subtitle, bodyHtml };
-}
-
-function extractPlainBodyLinesFromHtml(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(`<div>${html || ''}</div>`, 'text/html');
-    const blockNodes = Array.from(doc.body.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li'));
-
-    const lines = [];
-
-    blockNodes.forEach((node, nodeIndex) => {
-        const segments = String(node.innerHTML || '').split(/<br\s*\/?\s*>/gi);
-
-        if (segments.length === 0) {
-            lines.push('');
-            return;
-        }
-
-        segments.forEach((segment) => {
-            const temp = parser.parseFromString(`<div>${segment}</div>`, 'text/html');
-            const text = String(temp.body.textContent || '').replace(/\u00a0/g, ' ').trim();
-            lines.push(text);
-        });
-
-        if (nodeIndex < blockNodes.length - 1) {
-            // Preserve spacing between paragraph-like blocks.
-            lines.push('');
-        }
-    });
-
-    if (lines.length) {
-        return lines;
-    }
-
-    const fallbackText = String(doc.body.textContent || '').replace(/\u00a0/g, ' ').trim();
-    return fallbackText ? [fallbackText] : [];
-}
-
-function buildDocFilename(sourceTitle) {
-    const fallback = 'bai-viet';
-    const slug = slugifyPostTitle(sourceTitle || '') || fallback;
-    return `${slug}.docx`;
-}
-
-const DOCX_SAMPLE_POST = {
-    title: 'Bai viet mau nhập file docx',
-    subtitle: 'Dong nay la subtitle va duoc viet nghieng',
-    content: `
-        <p>Day la doan mo dau cho noi dung bai viet.</p>
-        <p>Ban co the them nhieu doan van ban o phan body.</p>
-        <p>Noi dung body su dung chu thuong, khong can in dam hay in nghieng.</p>
-    `,
-};
-
 export default function PostsManagement() {
     const { confirm, confirmModal } = useAdminConfirm();
     const location = useLocation();
@@ -206,13 +98,10 @@ export default function PostsManagement() {
     const [thumbnailUploading, setThumbnailUploading] = useState(false);
     const [showCatDropdown, setShowCatDropdown] = useState(false);
     const [hoveredPageType, setHoveredPageType] = useState(null);
-    const [docImporting, setDocImporting] = useState(false);
-    const [docExportingId, setDocExportingId] = useState('');
     const catDropdownRef = useRef(null);
     const editorRef = useRef(null);
     const imageInputRef = useRef(null);
     const thumbnailInputRef = useRef(null);
-    const docInputRef = useRef(null);
 
     useEffect(() => {
         categoriesAPI.getAll().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => { });
@@ -491,144 +380,6 @@ export default function PostsManagement() {
         }
     }
 
-    function openDocImportPicker() {
-        docInputRef.current?.click();
-    }
-
-    async function handleDocImport(event) {
-        const file = event.target.files?.[0];
-        event.target.value = '';
-
-        if (!file) {
-            return;
-        }
-
-        const isDocx = file.name.toLowerCase().endsWith('.docx')
-            || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-        if (!isDocx) {
-            alert('Vui lòng chọn file .docx hợp lệ.');
-            return;
-        }
-
-        setDocImporting(true);
-        try {
-            if (postsMode === 'list') {
-                setEditingPost(null);
-                setPostsTabInUrl('create');
-            }
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.convertToHtml({ arrayBuffer });
-            const { title, subtitle, bodyHtml } = extractStructuredDocContentFromHtml(result.value || '');
-
-            if (!title && !subtitle && normalizeDocText(bodyHtml.replace(/<[^>]*>/g, '')) === '') {
-                alert('Không đọc được nội dung từ file DOCX. Vui lòng kiểm tra lại định dạng file.');
-                return;
-            }
-
-            setForm((prev) => {
-                const resolvedTitle = title || prev.title;
-                return {
-                    ...prev,
-                    title: resolvedTitle,
-                    slug: resolvedTitle ? slugifyPostTitle(resolvedTitle) : prev.slug,
-                    summary: subtitle || prev.summary,
-                    content: bodyHtml,
-                };
-            });
-
-            if (editorRef.current) {
-                editorRef.current.innerHTML = bodyHtml;
-            }
-
-            if (title) {
-                setAiTopic(title);
-            }
-
-            alert('Nhập file docx thành công. Quy chuẩn nhận dạng: title in đậm, subtitle in nghiêng, body chữ thường.');
-        } catch (err) {
-            alert('nhập file docx thất bại: ' + (err.message || 'Lỗi không xác định'));
-        } finally {
-            setDocImporting(false);
-        }
-    }
-
-    async function exportPostAsDocx({ title, subtitle, content, fileNameHint, exportKey }) {
-        if (!normalizeDocText(title)) {
-            alert('Không thể xuất file docx vì bài viết chưa có tiêu đề.');
-            return;
-        }
-
-        setDocExportingId(exportKey || 'exporting');
-        try {
-            const bodyLines = extractPlainBodyLinesFromHtml(content);
-            const children = [
-                new Paragraph({
-                    children: [new TextRun({ text: normalizeDocText(title), bold: true, size: 30 })],
-                    spacing: { after: 240 },
-                }),
-            ];
-
-            if (normalizeDocText(subtitle)) {
-                children.push(
-                    new Paragraph({
-                        children: [new TextRun({ text: normalizeDocText(subtitle), italics: true, size: 24 })],
-                        spacing: { after: 220 },
-                    })
-                );
-            }
-
-            if (!bodyLines.length) {
-                children.push(new Paragraph({ children: [new TextRun({ text: '', bold: false, italics: false })] }));
-            } else {
-                bodyLines.forEach((line) => {
-                    children.push(
-                        new Paragraph({
-                            children: [new TextRun({ text: line, bold: false, italics: false, size: 24 })],
-                            spacing: { after: 140 },
-                        })
-                    );
-                });
-            }
-
-            const doc = new Document({ sections: [{ children }] });
-            const blob = await Packer.toBlob(doc);
-            const downloadUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = buildDocFilename(fileNameHint || title);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(downloadUrl);
-        } catch (err) {
-            alert('Xuất file docx thất bại: ' + (err.message || 'Lỗi không xác định'));
-        } finally {
-            setDocExportingId('');
-        }
-    }
-
-    function handleExportCurrentDocx() {
-        const content = editorRef.current ? editorRef.current.innerHTML : form.content;
-        exportPostAsDocx({
-            title: form.title,
-            subtitle: form.summary,
-            content,
-            fileNameHint: form.slug || form.title,
-            exportKey: 'current-editor',
-        });
-    }
-
-    function handleDownloadSampleDocx() {
-        exportPostAsDocx({
-            title: DOCX_SAMPLE_POST.title,
-            subtitle: DOCX_SAMPLE_POST.subtitle,
-            content: DOCX_SAMPLE_POST.content,
-            fileNameHint: 'mau-import-docx',
-            exportKey: 'sample-docx',
-        });
-    }
-
     useEffect(() => {
         if (!editorRef.current || viewTab !== 'editor') return;
         editorRef.current.innerHTML = form.content || '<p><br/></p>';
@@ -816,39 +567,12 @@ export default function PostsManagement() {
                 <div className="editor-screen">
                     <div className="editor-header editor-header--actions-only">
                         <div className="editor-header-actions">
-                            <button type="button" className="btn-secondary" onClick={openDocImportPicker} disabled={docImporting}>
-                                {docImporting ? 'Đang nhập file docx...' : 'Nhập file docx'}
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-secondary"
-                                onClick={handleDownloadSampleDocx}
-                                disabled={docExportingId === 'sample-docx'}
-                            >
-                                {docExportingId === 'sample-docx' ? 'Đang tạo mẫu...' : 'Tải file mẫu DOCX'}
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-secondary"
-                                onClick={handleExportCurrentDocx}
-                                disabled={docExportingId === 'current-editor'}
-                            >
-                                {docExportingId === 'current-editor' ? 'Đang xuất file docx...' : 'Xuất file docx'}
-                            </button>
                             <button type="button" className="btn-secondary" onClick={closeEditor}>
                                 <span className="btn-icon" aria-hidden="true"><ArrowLeftIcon /></span>
                                 Quay lại danh sách
                             </button>
                         </div>
                     </div>
-
-                    <input
-                        ref={docInputRef}
-                        type="file"
-                        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        style={{ display: 'none' }}
-                        onChange={handleDocImport}
-                    />
 
                     <form className="create-form" onSubmit={handleSave}>
                         <div className="editor-meta-grid">
